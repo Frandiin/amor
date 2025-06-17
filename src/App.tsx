@@ -1,629 +1,311 @@
-import { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { motion, useScroll, useSpring } from "framer-motion";
+import { photos } from "./mock/photo";
 
-function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+// Configurações de animação
+const springConfig = {
+  stiffness: 100,
+  damping: 30,
+  restDelta: 0.001
+};
+
+const App: React.FC = () => {
+  // Estado para controlar o modal de imagem
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, springConfig);
+  // Referência para controlar o elemento de áudio
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [, setCurrentImageIndex] = useState(0);
+
+  // Placeholder photos - replace with your actual photos
+
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % photos.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [photos.length]);
+
+  // Efeito para lidar com a reprodução automática do áudio
+  useEffect(() => {
+    const iniciarMusica = async () => {
+      if (audioRef.current) {
+        try {
+          // Configura o volume inicial
+          audioRef.current.volume = 0.5;
+          // Tenta reproduzir o áudio
+          await audioRef.current.play();
+          console.log('Música iniciada com sucesso!');
+        } catch (error ) {
+          console.log('É necessário interagir com a página para iniciar a música', error);
+        }
+      }
+    };
+
+    iniciarMusica();
+
+    // Adiciona um listener para quando a página receber interação
+    const handleInteracao = () => {
+      iniciarMusica();
+      // Remove o listener após a primeira interação
+      document.removeEventListener('click', handleInteracao);
+    };
+
+    document.addEventListener('click', handleInteracao);
+
+    // Limpa o listener quando o componente for desmontado
+    return () => {
+      document.removeEventListener('click', handleInteracao);
+    };
+  }, []);
+
+  // Memoize os elementos decorativos para evitar re-renders desnecessários
+  const decorativeElements = useMemo(() => {
+    return [...Array(15)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute"
+        initial={{
+          top: `${Math.random() * 100}%`,
+          left: `${Math.random() * 100}%`,
+          scale: Math.random() * 0.5 + 0.5,
+          opacity: 0
+        }}
+        animate={{
+          y: [0, -30, 0],
+          opacity: [0, 0.6, 0],
+          scale: [0.5, 1, 0.5]
+        }}
+        transition={{
+          duration: Math.random() * 4 + 3,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      >
+        {i % 2 === 0 ? (
+          <span className="text-rose-300 text-3xl filter blur-[1px]">❤️</span>
+        ) : (
+          <span className="text-pink-300 text-2xl filter blur-[0.5px]">✨</span>
+        )}
+      </motion.div>
+    ));
+  }, []);
 
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="bg-black/90 shadow-lg fixed w-full z-10">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <span className="text-2xl font-bold text-yellow-500">FitPro</span>
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-white hover:text-yellow-500 focus:outline-none"
-              >
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  {isMenuOpen ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  )}
-                </svg>
-              </button>
-            </div>
-
-            {/* Desktop menu */}
-            <div className="hidden md:flex items-center space-x-4">
-              <a href="#services" className="text-white hover:text-yellow-500">
-                Services
-              </a>
-              <a href="#about" className="text-white hover:text-yellow-500">
-                About
-              </a>
-              <a href="#plans" className="text-white hover:text-yellow-500">
-                Plans
-              </a>
-              <a href="#contact" className="text-white hover:text-yellow-500">
-                Contact
-              </a>
-              <button className="bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400">
-                Schedule
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile menu */}
-          {isMenuOpen && (
-            <div className="md:hidden">
-              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                <a
-                  href="#services"
-                  className="block text-white hover:text-yellow-500 py-2"
-                >
-                  Services
-                </a>
-                <a
-                  href="#about"
-                  className="block text-white hover:text-yellow-500 py-2"
-                >
-                  About
-                </a>
-                <a
-                  href="#plans"
-                  className="block text-white hover:text-yellow-500 py-2"
-                >
-                  Plans
-                </a>
-                <a
-                  href="#contact"
-                  className="block text-white hover:text-yellow-500 py-2"
-                >
-                  Contact
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
-
+    <div className="min-h-screen bg-gradient-to-b from-rose-100 via-pink-200 to-purple-300 relative overflow-hidden">
+      {/* Barra de progresso */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-rose-500 origin-left z-50"
+        style={{ scaleX }}
+      />
+      {/* Elementos decorativos flutuantes */}
+      <div className="absolute w-full h-full overflow-hidden pointer-events-none">
+        {decorativeElements}
+      </div>
       {/* Hero Section */}
-      <section className="relative h-screen bg-black">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?ixlib=rb-4.0.3')] bg-cover bg-center bg-no-repeat">
-          <div className="absolute inset-0 bg-black/60"></div>
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 h-full flex items-center">
-          <div className="text-center md:text-left md:max-w-2xl">
-            <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
-              Transform your body,
-              <br />
-              <span className="text-yellow-500">Transform your life</span>
-            </h1>
-            <p className="mt-3 text-base text-gray-100 sm:text-lg md:mt-5 md:text-xl">
-              Specialized personal trainer focused on real results. Customized
-              training for your specific goals.
-            </p>
-            <div className="mt-5 sm:flex sm:justify-start">
-              <div className="rounded-md shadow">
-                <button className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-black bg-yellow-500 hover:bg-yellow-400 md:py-4 md:text-lg md:px-10">
-                  First Class Free
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden object-cover">
+        {/* Círculo decorativo atrás do título */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          className="absolute w-[500px] h-[500px] bg-gradient-to-r from-pink-200/50 to-rose-200/50 rounded-full blur-xl"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1 }}
+          className="text-center z-10"
+        >
+          <motion.h1 
+            className="text-7xl font-bold text-rose-600 mb-6 drop-shadow-lg"
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 1, delay: 0.5 }}
+          >
+            Para Meu Amor
+          </motion.h1>
+          <motion.p 
+            className="text-2xl text-gray-700 italic font-serif"
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 1, delay: 0.8 }}
+          >
+            "Em cada batida do meu coração, 
+            <br/>existe um pedacinho do seu amor"
+          </motion.p>
+        </motion.div>
+        <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm"></div>
       </section>
+      <motion.div 
+        className="fixed bottom-4 right-4 z-50 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-rose-200"
+        initial={{ x: 100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.8, delay: 1 }}
+      >
+        <audio
+          ref={audioRef}
+          controls
+          loop
+          className="w-64"
+          style={{ backgroundColor: "transparent" }}
+        >
+          <source src="/music.mp3" type="audio/mp3" />
+          Seu navegador não suporta o elemento de áudio.
+        </audio>
+      </motion.div>
 
-      {/* Services Section */}
-      <section id="services" className="py-20 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Specialized Services
-            </h2>
-            <p className="mt-4 text-lg text-gray-400">
-              Customized training for every goal
+      {/* Gallery Section */}
+      <section className="py-20 px-4 relative">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="max-w-6xl mx-auto relative z-10">
+          <div className="text-center mb-16">
+            <motion.h2 
+              className="text-5xl font-bold text-rose-600 mb-4 drop-shadow-lg"
+              initial={{ scale: 0.9, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              Nossos Momentos Especiais
+            </motion.h2>
+            <p className="text-xl text-gray-600 italic font-serif">
+              Cada foto conta uma história do nosso amor
             </p>
           </div>
-          <div className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-3">
-            {[
-              {
-                title: "Personalized Training",
-                description:
-                  "Exclusive programs designed for your specific goals.",
-              },
-              {
-                title: "Nutrition Consulting",
-                description: "Nutritional guidance to maximize your results.",
-              },
-              {
-                title: "Online Coaching",
-                description:
-                  "Ongoing support and adjustments to your training program.",
-              },
-            ].map((item, index) => (
-              <div
-                key={index}
-                className="flex flex-col items-center bg-gray-800 p-6 rounded-lg"
+          <div className="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-4 mx-auto space-y-4 p-4">
+            {/* Modal de imagem */}
+            {selectedImage && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+                onClick={() => setSelectedImage(null)}
               >
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-yellow-500 text-black">
-                  <svg
-                    className="h-8 w-8"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="mt-8 text-lg font-medium text-white">
-                  {item.title}
-                </h3>
-                <p className="mt-2 text-base text-gray-400 text-center">
-                  {item.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              About Me
-            </h2>
-            <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-8">
-              <div className="w-64 h-64 rounded-full overflow-hidden">
-                <img
-                  src="https://images.unsplash.com/photo-1571732154690-f6d1c3e5178a?ixlib=rb-4.0.3"
-                  alt="Personal Trainer"
-                  className="w-full h-full object-cover"
+                <motion.img
+                  src={selectedImage}
+                  alt="Imagem ampliada"
+                  className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl"
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.9 }}
+                  onClick={(e) => e.stopPropagation()}
                 />
-              </div>
-              <p className="mt-4 max-w-2xl text-xl text-gray-400 lg:mx-auto">
-                With over 10 years of experience, I specialize in physical
-                transformation and well-being. My approach combines effective
-                workouts, proper nutrition, and constant support to ensure you
-                achieve your goals.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Plans Section */}
-      <section id="plans" className="py-20 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Plans
-            </h2>
-            <p className="mt-4 text-lg text-gray-400">
-              Choose the perfect plan for your goals
-            </p>
-          </div>
-          <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-            {[
-              {
-                name: "Basic",
-                price: "$99",
-                features: [
-                  "2 workouts per week",
-                  "Monthly physical assessment",
-                  "WhatsApp support",
-                ],
-              },
-              {
-                name: "Premium",
-                price: "$199",
-                highlight: true,
-                features: [
-                  "3 workouts per week",
-                  "Bi-weekly physical assessment",
-                  "Nutrition consulting",
-                  "24/7 support",
-                  "Exclusive app",
-                ],
-              },
-              {
-                name: "VIP",
-                price: "$299",
-                features: [
-                  "5 workouts per week",
-                  "Weekly physical assessment",
-                  "Nutrition consulting",
-                  "24/7 support",
-                  "Exclusive app",
-                  "In-home workouts",
-                ],
-              },
-            ].map((plan, index) => (
-              <div
-                key={index}
-                className={`rounded-lg p-8 flex flex-col ${
-                  plan.highlight
-                    ? "bg-yellow-500 text-black"
-                    : "bg-gray-800 text-white"
-                }`}
-              >
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold">{plan.name}</h3>
-                  <p className="mt-4 text-4xl font-bold">
-                    {plan.price}
-                    <span className="text-sm">/month</span>
-                  </p>
-                  <ul className="mt-6 space-y-4">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center">
-                        <svg
-                          className="h-5 w-5 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
                 <button
-                  className={`mt-8 w-full py-3 px-4 rounded-md font-medium flex items-center justify-center ${
-                    plan.highlight
-                      ? "bg-black text-yellow-500 hover:bg-gray-900"
-                      : "bg-yellow-500 text-black hover:bg-yellow-400"
-                  }`}
+                  className="absolute top-4 right-4 text-white text-xl p-2 hover:bg-white/10 rounded-full"
+                  onClick={() => setSelectedImage(null)}
                 >
-                  Start Now
+                  ✕
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Results Section */}
-      <section className="py-20 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Real Results
-            </h2>
-            <p className="mt-4 text-lg text-gray-400">
-              Transformations that changed lives
-            </p>
-          </div>
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                before:
-                  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                after:
-                  "https://images.unsplash.com/photo-1571019613576-2b22c76fd955",
-                name: "Carlos Silva",
-                result: "-33 lbs in 3 months",
-              },
-              {
-                before:
-                  "https://images.unsplash.com/photo-1571019613576-2b22c76fd955",
-                after:
-                  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                name: "Maria Santos",
-                result: "+11 lbs of lean muscle",
-              },
-              {
-                before:
-                  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                after:
-                  "https://images.unsplash.com/photo-1571019613576-2b22c76fd955",
-                name: "Pedro Oliveira",
-                result: "Muscle definition in 6 months",
-              },
-            ].map((transformation, index) => (
-              <div
-                key={index}
-                className="bg-gray-800 rounded-lg overflow-hidden"
+              </motion.div>
+            )}
+            {photos.map((photo, index) => (
+              <motion.div
+                key={photo}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="relative mb-4 break-inside-avoid"
               >
-                <div className="relative">
-                  <div className="aspect-w-16 aspect-h-9">
-                    <img
-                      src={transformation.after}
-                      alt="After"
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black">
-                    <p className="text-white font-bold">
-                      {transformation.name}
-                    </p>
-                    <p className="text-yellow-500">{transformation.result}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="py-20 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Why Choose Me?
-            </h2>
-            <p className="mt-4 text-lg text-gray-400">
-              Commitment to your goals
-            </p>
-          </div>
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                title: "Proven Experience",
-                description: "Over 500 clients transformed in 10 years",
-              },
-              {
-                title: "Exclusive Method",
-                description: "Customized workouts based on science and results",
-              },
-              {
-                title: "Premium Support",
-                description: "Constant support via WhatsApp and exclusive app",
-              },
-              {
-                title: "Results Guarantee",
-                description:
-                  "If you don't see results in 30 days, we refund your money",
-              },
-            ].map((benefit, index) => (
-              <div key={index} className="bg-gray-800 p-6 rounded-lg">
-                <h3 className="text-xl font-bold text-yellow-500">
-                  {benefit.title}
-                </h3>
-                <p className="mt-2 text-gray-400">{benefit.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              What My Clients Say
-            </h2>
-          </div>
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Ana Paula",
-                photo:
-                  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                testimonial:
-                  "Best decision I ever made! In 3 months, I saw incredible results. The support is phenomenal!",
-                age: "32 years old",
-              },
-              {
-                name: "Roberto Gomes",
-                photo:
-                  "https://images.unsplash.com/photo-1571019613576-2b22c76fd955",
-                testimonial:
-                  "Workouts that fit my busy schedule. Surprising results even with limited time.",
-                age: "45 years old",
-              },
-              {
-                name: "Juliana Costa",
-                photo:
-                  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                testimonial:
-                  "Nutrition consulting made all the difference. I lost weight and gained so much energy!",
-                age: "28 years old",
-              },
-            ].map((testimonial, index) => (
-              <div key={index} className="bg-gray-800 p-6 rounded-lg">
-                <div className="flex items-center">
+                <div 
+                  className="group relative overflow-hidden rounded-xl shadow-lg cursor-pointer"
+                  onClick={() => setSelectedImage(photo)}
+                >
                   <img
-                    src={testimonial.photo}
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover"
+                    src={photo}   
+                    loading="lazy"
+                    className="w-full h-auto object-cover transition-all duration-300 group-hover:brightness-90 group-hover:scale-105"
                   />
-                  <div className="ml-4">
-                    <p className="text-white font-bold">{testimonial.name}</p>
-                    <p className="text-gray-400">{testimonial.age}</p>
+                  {/* Overlay com efeitos hover */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      <p className="text-white text-sm font-medium">
+                        Momento Especial {index + 1}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="p-2 rounded-full bg-rose-500/80 backdrop-blur-sm hover:bg-rose-600/80 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Adicionar funcionalidade de curtir aqui
+                          }}
+                        >
+                          ❤️
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="p-2 rounded-full bg-purple-500/80 backdrop-blur-sm hover:bg-purple-600/80 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Adicionar funcionalidade de favoritar aqui
+                          }}
+                        >
+                          ✨
+                        </motion.button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p className="mt-4 text-gray-300 italic">
-                  "{testimonial.testimonial}"
-                </p>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Frequently Asked Questions
-            </h2>
-          </div>
-          <div className="mt-12 max-w-3xl mx-auto">
-            {[
-              {
-                question: "How long does it take to see results?",
-                answer:
-                  "With dedication and following the plan, initial results are visible in 30 days. More significant results in 90 days.",
-              },
-              {
-                question: "Do I need prior experience with exercise?",
-                answer:
-                  "No! Our approach is tailored for all levels, from beginners to advanced.",
-              },
-              {
-                question: "How does online coaching work?",
-                answer:
-                  "You'll have access to an exclusive app, detailed exercise videos, and daily WhatsApp support.",
-              },
-              {
-                question: "What if I have an injury or limitation?",
-                answer:
-                  "We conduct a full assessment and adapt exercises to your specific conditions.",
-              },
-            ].map((faq, index) => (
-              <div key={index} className="mt-8 border-b border-gray-800">
-                <div className="mb-4">
-                  <h3 className="text-lg font-medium text-yellow-500">
-                    {faq.question}
-                  </h3>
-                  <p className="mt-2 text-gray-400">{faq.answer}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Love Letter Section */}
+      <section className="py-20 px-4 bg-gradient-to-b from-white/30 to-rose-100/30 backdrop-blur-sm relative overflow-hidden">
+        {/* Elementos decorativos da seção */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            className="absolute top-10 left-10 text-4xl opacity-20"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          >
+            ❤️
+          </motion.div>
+          <motion.div
+            className="absolute bottom-10 right-10 text-4xl opacity-20"
+            animate={{ rotate: -360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          >
+            ❤️
+          </motion.div>
         </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-yellow-500 to-yellow-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-extrabold text-black sm:text-4xl">
-            Ready to transform your life?
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="max-w-3xl mx-auto text-center"
+        >
+          <h2 className="text-5xl font-bold text-rose-600 mb-8 drop-shadow-lg">
+            Carta de Amor
           </h2>
-          <p className="mt-4 text-xl text-gray-900">
-            Start now with a free assessment and get 1 week of training!
-          </p>
-          <div className="mt-8 flex justify-center">
-            <button className="px-8 py-3 border border-transparent text-base font-medium rounded-md text-yellow-500 bg-black hover:bg-gray-900 md:py-4 md:text-lg md:px-10">
-              I Want to Start Today!
-            </button>
-          </div>
-          <p className="mt-4 text-sm text-gray-900">*Limited-time offer</p>
-        </div>
-      </section>
+          <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-rose-200">
+            <p className="text-xl text-gray-700 leading-relaxed font-serif italic">
+              Meu amor Feliz dia dos namorados<br/><br/>
+             
 
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Get in Touch
-            </h2>
-            <p className="mt-4 text-lg text-gray-400">
-              Schedule your free assessment
+Palavras ou intenções nunca serão suficientes para traduzir o amor imenso e a admiração profunda que sinto por você. <br/>
+              Você é minha companheira para tudo – para o que já vivemos e para tudo o que ainda está por vir. Sou eternamente grato <br/>
+              por você cuidar de mim com tanto carinho e por me guiar, com sua luz, a ser um homem melhor a cada dia. Meu coração <br/>
+              é seu, e eu te amo com toda a minha alma.<br/><br/>
+              Para sempre seu,<br/>
+              ❤️
             </p>
           </div>
-          <div className="mt-12 max-w-lg mx-auto">
-            <form className="grid grid-cols-1 gap-6">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-gray-400"
-                >
-                  Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  id="name"
-                  className="mt-1 block w-full rounded-md bg-gray-800 border-gray-700 text-white shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-400"
-                >
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  id="email"
-                  className="mt-1 block w-full rounded-md bg-gray-800 border-gray-700 text-white shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="block text-sm font-medium text-gray-400"
-                >
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  id="phone"
-                  className="mt-1 block w-full rounded-md bg-gray-800 border-gray-700 text-white shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="message"
-                  className="block text-sm font-medium text-gray-400"
-                >
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={4}
-                  className="mt-1 block w-full rounded-md bg-gray-800 border-gray-700 text-white shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
-                />
-              </div>
-              <div>
-                <button
-                  type="submit"
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-black bg-yellow-500 hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                >
-                  Send Message
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-base text-gray-400">
-              2024 FitPro Personal Trainer. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
-}
+};
 
 export default App;
